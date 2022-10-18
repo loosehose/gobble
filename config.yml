@@ -1,0 +1,26 @@
+payload:
+  artifacts:
+    - name: patchetw
+      type: evasion
+    - name: hideconsole
+      type: evasion
+    - name: english-words
+      type: evasion
+      args:
+        - name: NumberOfWord
+          value: 125
+    - name: aes
+      type: encoder
+      args:
+        - name: Key
+          value: "Cy84oHmnvKHDwux7GK2sE7ZqudsKapwf"
+    - name: reverse-order
+      type: encoder
+    - name: windows/bananaphone/local/unhooker
+      type: injector
+  #sgn: false #must be decommented in the code to be used
+  type: dll
+  arch: x64
+  debug: false
+  obfuscation: false #need garble to be installed
+

