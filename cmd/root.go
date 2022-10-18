@@ -14,7 +14,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "uru",
+	Use:   "gobble",
 	Short: "Payload generation tool for windows.",
 	Long:  `Payload generation tool that uses a config file to defined an execution workflow. It helps you to obfuscate and execute a shellcode/executable during your engagement.`,
 
