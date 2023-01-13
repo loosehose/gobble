@@ -11,9 +11,57 @@ git clone https://github.com/loosehose/gobble.git
 cd gobble
 go build
 ```
+## Usage
 
+```
+GOOS=windows ./gobble generate -c config.yml -p beacon.bin
+```
 
+### Generate
 
+Taken from Uru:
+
+```
+Take as input a config and a given payload file to generate a payload.
+
+Usage:
+  uru generate [flags]
+
+Flags:
+      --class string                   .Net Class to call (use with donut)
+      --clearheader                    Remove peheader of the payload if set (use with srdi)
+  -c, --config string                  Config file that definied the modules to use
+      --donut                          Process the given payload as an executable using go-donut
+      --functionname string            Methods to call if .Net payload (with donut) or Function name to call after DLL Main (with srdi)
+  -h, --help                           help for generate
+  -o, --output string                  Output file name
+      --parameters string              Parameters to pass to the payload (use with donut/srdi)
+  -p, --payload Shellcode/Executable   Shellcode/Executable to use in the generated payload
+      --srdi                           Convert dll into a position independant code that uses a rdll loader to execute the dll entrypoint.
+```
+
+### Config.yml (Example)
+
+```
+payload:
+  artifacts:
+    - name: hideconsole
+      type: evasion
+    - name: aes
+      type: encoder
+      args:
+        - name: Key
+          value: "dNJFi4GmAl9rz3CqBpftNoJy"
+    - name: reverse-order
+      type: encoder
+    - name: windows/native/local/SpfGateCreateThread
+      type: injector
+  #sgn: false #must be decommented in the code to be used
+  type: exe
+  arch: x64
+  debug: false
+  obfuscation: true #need garble to be installed
+```
 ## DIY
 
 Assume your goal is to add injection methods to this project. This can easily be accomplished by using the following steps:
