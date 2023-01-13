@@ -36,7 +36,7 @@ To add injection methods to this project, follow these steps:
    ```
    if injectorType == "windows/native/local/EarlyBird" {
    		return native.NewEarlyBird(), nil
-   	}
+   }
    ```
 
 7. Save all changes and rebuild the project using `go build` before testing the newly added code.
