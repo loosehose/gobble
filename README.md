@@ -3,7 +3,7 @@
   <img src="https://user-images.githubusercontent.com/75705022/212232137-4dd329e8-fab6-4cc9-94d9-a5bd32ca8588.png" />
 </p>
 
-Gobble is a combination of Golang projects, featuring the skeleton of Uru and meat consisting of either original content or inspiration from Tim Whitez's Doge-Gabh. To learn more about creating malware quickly and effectively, please check out both the Uru and Doge-Gabh repositories.
+Gobble is a combination of Golang projects, featuring the skeleton of [Uru](https://github.com/guervild/uru) and meat consisting of either original content or inspiration from Tim Whitez's [Doge-Gabh](https://github.com/timwhitez/Doge-Gabh). To learn more about creating malware quickly and effectively, please check out both the Uru and Doge-Gabh repositories.
 
 ## Installation
 
