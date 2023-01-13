@@ -1,24 +1,20 @@
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/75705022/212232137-4dd329e8-fab6-4cc9-94d9-a5bd32ca8588.png" />
+  <img src="https://user-images.githubusercontent.com/75705022/212419130-d4665a94-da84-41de-b036-68b185d20f67.png" />
 </p>
-
 Gobble is a combination of Golang projects, featuring the skeleton of [Uru](https://github.com/guervild/uru) and meat consisting of either original content or inspiration from Tim Whitez's [Doge-Gabh](https://github.com/timwhitez/Doge-Gabh). To learn more about creating malware quickly and effectively, please check out both the Uru and Doge-Gabh repositories.
 
 ## Installation
-
 ```
 git clone https://github.com/loosehose/gobble.git
 cd gobble
 go build
 ```
 ## Usage
-
 ```
 GOOS=windows ./gobble generate -c config.yml -p beacon.bin
 ```
 
 ### Generate
-
 Taken from Uru:
 
 ```
@@ -63,7 +59,6 @@ payload:
   obfuscation: true #need garble to be installed
 ```
 ## DIY
-
 Assume your goal is to add injection methods to this project. This can easily be accomplished by using the following steps:
 
 To add injection methods to this project, follow these steps:
@@ -89,7 +84,6 @@ To add injection methods to this project, follow these steps:
 7. Save all changes and rebuild the project using `go build` before testing the newly added code.
 
 ## Common Errors
-
 To solve issues on non-Windows operating systems, use the following syntax: 
 
 `GOOS=windows ./gobble generate ...` 
