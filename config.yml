@@ -1,26 +1,19 @@
 payload:
   artifacts:
-    - name: patchetw
-      type: evasion
     - name: hideconsole
       type: evasion
-    - name: english-words
-      type: evasion
-      args:
-        - name: NumberOfWord
-          value: 125
     - name: aes
       type: encoder
       args:
         - name: Key
-          value: "Cy84oHmnvKHDwux7GK2sE7ZqudsKapwf"
+          value: "dNJFi4GmAl9rz3CqBpftNoJy"
     - name: reverse-order
       type: encoder
-    - name: windows/bananaphone/local/unhooker
+    - name: windows/native/local/SpfGateCreateThread
       type: injector
   #sgn: false #must be decommented in the code to be used
-  type: dll
+  type: exe
   arch: x64
   debug: false
-  obfuscation: false #need garble to be installed
+  obfuscation: true #need garble to be installed
 

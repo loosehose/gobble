@@ -13,36 +13,17 @@ func GetInjector(injectorType string) (models.ObjectModel, error) {
 		return native.NewSyscallGoShellcode(), nil
 	}
 
-	if injectorType == "windows/native/local/earlybird" {
-		return native.NewEarlyBird(), nil
+	if injectorType == "windows/native/local/hellsgate" {
+		return native.NewHellsGate(), nil
 	}
 
 	if injectorType == "windows/native/local/spfgatecreatethread" {
 		return native.NewSpfGateCreateThread(), nil
 	}
 
-	if injectorType == "windows/native/local/unhookcreatethread" {
-		return native.NewUnhookCreateThread(), nil
-	}
 
 	if injectorType == "windows/native/local/perunsfart" {
 		return native.NewPeRunsFart(), nil
-	}
-
-	if injectorType == "windows/native/local/injectprocess" {
-		return native.NewCreateThreadNative(), nil
-	}
-
-	if injectorType == "windows/native/local/rtlcreateuserthread" {
-		return native.NewCreateThreadNative(), nil
-	}
-
-	if injectorType == "windows/native/local/ntqueueapcthreadex-local" {
-		return native.NewNtQueueApcThreadExLocal(), nil
-	}
-
-	if injectorType == "windows/native/local/createthreadnative" {
-		return native.NewCreateThreadNative(), nil
 	}
 
 	if injectorType == "windows/bananaphone/local/unhooker" {
